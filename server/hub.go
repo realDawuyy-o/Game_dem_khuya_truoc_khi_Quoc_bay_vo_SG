@@ -63,6 +63,7 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 	defer room.leave(p)
 
 	go p.writeLoop(ctx)
+	go p.pingLoop(ctx)
 	p.readLoop(ctx, room)
 }
 

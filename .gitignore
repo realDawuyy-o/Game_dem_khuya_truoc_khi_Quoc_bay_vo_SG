@@ -1,0 +1,3 @@
+# go build output in server/
+/server/server
+/server/server.exe

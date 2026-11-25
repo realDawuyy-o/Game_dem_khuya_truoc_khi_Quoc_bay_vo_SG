@@ -8,6 +8,13 @@ import (
 	"github.com/coder/websocket/wsjson"
 )
 
+// Azure (and most cloud load balancers) drop WebSockets that are idle for ~4
+// minutes, so ping well inside that.
+const (
+	pingInterval = 30 * time.Second
+	pingTimeout  = 10 * time.Second
+)
+
 type Player struct {
 	name string
 	conn *websocket.Conn
@@ -35,6 +42,25 @@ func (p *Player) writeLoop(ctx context.Context) {
 		case msg := <-p.send:
 			wctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			err := wsjson.Write(wctx, p.conn, msg)
+			cancel()
+			if err != nil {
+				p.conn.CloseNow()
+				return
+			}
+		}
+	}
+}
+
+func (p *Player) pingLoop(ctx context.Context) {
+	ticker := time.NewTicker(pingInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			pctx, cancel := context.WithTimeout(ctx, pingTimeout)
+			err := p.conn.Ping(pctx)
 			cancel()
 			if err != nil {
 				p.conn.CloseNow()
