@@ -2,9 +2,10 @@ package main
 
 // inMsg is every client → server message. One flat struct; each type only uses the fields it needs.
 type inMsg struct {
-	Type  string   `json:"type"`            // create, join, start, guess
-	Name  string   `json:"name,omitempty"`  // create, join
+	Type  string   `json:"type"`            // create, join, start, guess, rename
+	Name  string   `json:"name,omitempty"`  // create, join, rename
 	Room  string   `json:"room,omitempty"`  // join
+	Solo  bool     `json:"solo,omitempty"`  // create
 	Picks []string `json:"picks,omitempty"` // guess
 }
 

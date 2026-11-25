@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="game-backend" content="" />
     <meta name="theme-color" content="#8cc4dc" />
     <meta
       name="description"
@@ -80,11 +81,12 @@
               id="player-name"
               name="playerName"
               type="text"
-              maxlength="18"
+              maxlength="16"
               placeholder="TYPE YOUR NAME"
               autocomplete="nickname"
               required
             />
+            <p class="name-status" id="name-status" role="status" aria-live="polite"></p>
 
             <fieldset class="character-grid" aria-label="Choose your character">
               <legend class="visually-hidden">Choose your character</legend>
@@ -171,16 +173,56 @@
             </fieldset>
 
             <div class="lobby-actions">
-              <button class="game-button host-button" type="submit" value="join">JOIN THE JAM <span aria-hidden="true">→</span></button>
-              <button class="game-button join-button" type="submit" value="host">HOST A JAM <span aria-hidden="true">+</span></button>
+              <button class="game-button host-button" id="open-join" type="button">JOIN THE JAM <span aria-hidden="true">→</span></button>
+              <button class="game-button join-button" id="open-host" type="button">HOST A JAM <span aria-hidden="true">+</span></button>
+              <button class="game-button solo-button" id="open-solo" type="button">SOLO TEST <span aria-hidden="true">▶</span></button>
             </div>
           </form>
         </section>
 
-        <button class="other-rooms-link" type="submit" form="lobby-form" value="join">
+        <button class="other-rooms-link" id="other-rooms" type="button">
           <span class="star-bullet" aria-hidden="true">✦</span> OTHER ROOMS
         </button>
       </section>
+      <aside class="room-dialog" id="room-dialog" aria-labelledby="dialog-title" hidden>
+        <button class="close-button" id="room-close" type="button" aria-label="Close room dashboard">×</button>
+        <p class="eyebrow"><span class="star-bullet" aria-hidden="true">✦</span> Music room</p>
+        <h2 id="dialog-title"></h2>
+        <form class="join-form" id="join-form" hidden>
+          <label class="visually-hidden" for="join-room-code">Room code</label>
+          <input id="join-room-code" type="text" maxlength="4" pattern="[A-HJ-NP-Z]{4}" placeholder="Room code" required autocomplete="off" />
+          <button class="game-button dialog-join-button" type="submit">Join the jam <span aria-hidden="true">↗</span></button>
+        </form>
+        <p class="room-code" id="room-code" hidden></p>
+        <section class="room-members" id="room-members" aria-labelledby="room-members-title" hidden>
+          <h3 id="room-members-title">ROOM MEMBERS <span id="member-count"></span></h3>
+          <ul id="member-list"></ul>
+          <p class="members-waiting">Waiting for your friends to join...</p>
+        </section>
+        <p class="room-status" id="room-status" role="status" aria-live="polite"></p>
+        <button class="game-button room-start-button" id="room-start" type="button" hidden>Start game</button>
+        <section class="game-play" id="game-play" aria-label="Game round" hidden>
+          <div class="game-play-heading">
+            <h3 id="round-heading">ROUND 1 / 10</h3>
+            <p id="round-timer"></p>
+          </div>
+          <p id="game-status" role="status" aria-live="polite"></p>
+          <audio id="round-audio" controls preload="auto"></audio>
+          <form id="guess-form">
+            <fieldset id="sound-choices">
+              <legend id="choices-prompt">Choose the sounds you hear</legend>
+            </fieldset>
+            <button class="game-button" id="submit-guess" type="submit">Lock in answer</button>
+          </form>
+          <ol class="round-results" id="round-results" hidden></ol>
+          <ol class="game-leaderboard" id="game-leaderboard" hidden></ol>
+        </section>
+        <p class="dialog-note">Share your code, gather your soundmates, and play together.</p>
+        <div class="dialog-actions">
+          <button class="copy-button game-button" id="copy-code" type="button" hidden>Copy code</button>
+          <button class="done-button game-button" id="dialog-done" type="button">Done</button>
+        </div>
+      </aside>
     </main>
 
     <audio id="intro-audio" src="intro.mp3" preload="auto"></audio>
@@ -194,25 +236,6 @@
       <input id="newsletter-email" type="email" />
       <p id="newsletter-status"></p>
     </form>
-
-    <dialog class="room-dialog" id="room-dialog" aria-labelledby="dialog-title">
-      <form method="dialog">
-        <button class="close-button" aria-label="Close">×</button>
-      </form>
-      <p class="eyebrow"><span class="star-bullet" aria-hidden="true">✦</span> Music room</p>
-      <h2 id="dialog-title"></h2>
-      <form class="join-form" id="join-form" hidden>
-        <label class="visually-hidden" for="join-room-code">Room code</label>
-        <input id="join-room-code" type="text" maxlength="5" placeholder="Room code" required autocomplete="off" />
-        <button class="game-button dialog-join-button" type="submit">Join the jam <span aria-hidden="true">↗</span></button>
-      </form>
-      <p class="room-code" id="room-code" hidden></p>
-      <p class="dialog-note">Share your code, gather your soundmates, and play together. Live multiplayer needs a game server connection.</p>
-      <div class="dialog-actions">
-        <button class="copy-button game-button" id="copy-code" type="button" hidden>Copy code</button>
-        <button class="done-button game-button" id="dialog-done" type="button">Done</button>
-      </div>
-    </dialog>
 
     <svg class="sprite-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <defs>

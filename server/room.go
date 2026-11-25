@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -44,6 +46,7 @@ type Room struct {
 	code    string
 	sounds  []Sound
 	audio   *AudioStore
+	solo    bool
 	onEmpty func()
 	events  chan func()
 	done    chan struct{}
@@ -61,11 +64,12 @@ type Room struct {
 	closed     bool
 }
 
-func newRoom(code string, sounds []Sound, audio *AudioStore, onEmpty func()) *Room {
+func newRoom(code string, sounds []Sound, audio *AudioStore, solo bool, onEmpty func()) *Room {
 	return &Room{
 		code:    code,
 		sounds:  sounds,
 		audio:   audio,
+		solo:    solo,
 		onEmpty: onEmpty,
 		events:  make(chan func()),
 		done:    make(chan struct{}),
@@ -125,10 +129,37 @@ func (r *Room) handle(p *Player, msg inMsg) {
 			r.onStart(p)
 		case "guess":
 			r.onGuess(p, msg.Picks)
+		case "rename":
+			r.onRename(p, msg.Name)
 		default:
 			p.deliver(errorMsg("unknown message type: " + msg.Type))
 		}
 	})
+}
+
+func (r *Room) onRename(p *Player, name string) {
+	m := r.byPlayer(p)
+	name = strings.TrimSpace(name)
+	if m == nil {
+		p.deliver(errorMsg("not a member of this room"))
+		return
+	}
+	if name == "" || utf8.RuneCountInString(name) > 16 {
+		p.deliver(errorMsg("name must be 1-16 characters"))
+		return
+	}
+	if existing := r.byName(name); existing != nil && existing != m {
+		p.deliver(errorMsg("name already taken"))
+		return
+	}
+
+	oldName := m.name
+	m.name = name
+	p.name = name
+	if r.host == oldName {
+		r.host = name
+	}
+	r.broadcastState()
 }
 
 func (r *Room) addPlayer(p *Player) error {
@@ -200,7 +231,7 @@ func (r *Room) onStart(p *Player) {
 		p.deliver(errorMsg("only the host can start"))
 	case r.phase != phaseLobby:
 		p.deliver(errorMsg("game already running"))
-	case len(r.connected()) < minPlayers:
+	case !r.solo && len(r.connected()) < minPlayers:
 		p.deliver(errorMsg(fmt.Sprintf("need at least %d players", minPlayers)))
 	default:
 		for _, m := range r.members {

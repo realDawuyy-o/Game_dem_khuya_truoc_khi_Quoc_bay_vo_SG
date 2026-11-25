@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test Go server
+        working-directory: server
+        run: go test ./...
+      - name: Check client JavaScript
+        run: node --check web/client.js
+      - name: Build container
+        run: docker build --file Dockerfile --tag badabum:ci .

@@ -11,6 +11,7 @@ func routes(cfg Config, hub *Hub, audio *AudioStore) *http.ServeMux {
 	mux.HandleFunc("GET /ws", handleWS(hub, cfg.AllowedOrigins))
 	mux.HandleFunc("GET /audio/{id}", handleAudio(audio))
 	mux.HandleFunc("GET /health", handleHealth)
+	mux.Handle("/", http.FileServer(http.Dir(cfg.WebDir)))
 	return mux
 }
 

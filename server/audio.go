@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-// All sounds must be 16-bit PCM mono at this rate so they can be mixed by plain addition.
+// Sounds are converted to 16-bit PCM mono at this rate before mixing.
 const sampleRate = 22050
 
 var le = binary.LittleEndian
@@ -52,7 +52,10 @@ func parseWAV(data []byte) ([]int16, error) {
 		return nil, errors.New("not a WAV file")
 	}
 
-	fmtOK := false
+	var channels uint16
+	var sourceRate uint32
+	var bitsPerSample uint16
+	var formatOK bool
 	for p := 12; p+8 <= len(data); {
 		id := string(data[p : p+4])
 		size := int(le.Uint32(data[p+4 : p+8]))
@@ -66,27 +69,75 @@ func parseWAV(data []byte) ([]int16, error) {
 			if size < 16 {
 				return nil, errors.New("bad fmt chunk")
 			}
-			format, channels := le.Uint16(body[0:2]), le.Uint16(body[2:4])
-			rate, bits := le.Uint32(body[4:8]), le.Uint16(body[14:16])
-			if format != 1 || channels != 1 || rate != sampleRate || bits != 16 {
-				return nil, fmt.Errorf("need 16-bit PCM mono %d Hz, got format=%d channels=%d rate=%d bits=%d",
-					sampleRate, format, channels, rate, bits)
+			format, channelCount := le.Uint16(body[0:2]), le.Uint16(body[2:4])
+			sourceRate, channels = le.Uint32(body[4:8]), channelCount
+			bitsPerSample = le.Uint16(body[14:16])
+			if format != 1 || (channels != 1 && channels != 2) || sourceRate == 0 || (bitsPerSample != 16 && bitsPerSample != 24) {
+				return nil, fmt.Errorf("need 16-bit or 24-bit PCM mono or stereo audio, got format=%d channels=%d rate=%d bits=%d",
+					format, channels, sourceRate, bitsPerSample)
 			}
-			fmtOK = true
+			formatOK = true
 		case "data":
-			if !fmtOK {
+			if !formatOK {
 				return nil, errors.New("data chunk before fmt chunk")
 			}
-			samples := make([]int16, size/2)
-			for i := range samples {
-				samples[i] = int16(le.Uint16(body[2*i:]))
+			bytesPerSample := int(bitsPerSample / 8)
+			frameSize := int(channels) * bytesPerSample
+			if size%frameSize != 0 {
+				return nil, errors.New("data chunk ends in a partial audio frame")
 			}
-			return samples, nil
+			frames := size / frameSize
+			mono := make([]int16, frames)
+			for i := range mono {
+				var sum int32
+				for channel := range int(channels) {
+					offset := i*frameSize + channel*bytesPerSample
+					sum += int32(decodePCM16(body[offset:offset+bytesPerSample], bytesPerSample))
+				}
+				mono[i] = int16(sum / int32(channels))
+			}
+			return resample(mono, int(sourceRate)), nil
 		}
 		// Chunks are padded to an even size; ffmpeg also adds extra ones like LIST.
 		p += 8 + size + size%2
 	}
 	return nil, errors.New("no data chunk")
+}
+
+func decodePCM16(sample []byte, bytesPerSample int) int16 {
+	if bytesPerSample == 2 {
+		return int16(le.Uint16(sample))
+	}
+
+	value := int32(sample[0]) | int32(sample[1])<<8 | int32(sample[2])<<16
+	if value&0x800000 != 0 {
+		value |= ^int32(0xffffff)
+	}
+	return int16(value >> 8)
+}
+
+func resample(samples []int16, sourceRate int) []int16 {
+	if sourceRate == sampleRate || len(samples) == 0 {
+		return samples
+	}
+
+	outputLength := int(math.Round(float64(len(samples)) * float64(sampleRate) / float64(sourceRate)))
+	if outputLength < 1 {
+		outputLength = 1
+	}
+	output := make([]int16, outputLength)
+	for i := range output {
+		position := int64(i) * int64(sourceRate)
+		left := int(position / sampleRate)
+		remainder := position % sampleRate
+		if left >= len(samples)-1 {
+			output[i] = samples[len(samples)-1]
+			continue
+		}
+		delta := int64(samples[left+1]) - int64(samples[left])
+		output[i] = int16(int64(samples[left]) + delta*remainder/sampleRate)
+	}
+	return output
 }
 
 func mix(sounds []Sound) []int16 {

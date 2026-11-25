@@ -1,8 +1,30 @@
 const lobbyForm = document.querySelector("#lobby-form");
 const playerNameInput = document.querySelector("#player-name");
+const nameStatus = document.querySelector("#name-status");
+const openJoinButton = document.querySelector("#open-join");
+const openHostButton = document.querySelector("#open-host");
+const openSoloButton = document.querySelector("#open-solo");
+const otherRoomsButton = document.querySelector("#other-rooms");
 const roomDialog = document.querySelector("#room-dialog");
 const dialogTitle = document.querySelector("#dialog-title");
 const roomCodeLabel = document.querySelector("#room-code");
+const roomCloseButton = document.querySelector("#room-close");
+const roomMembers = document.querySelector("#room-members");
+const memberCount = document.querySelector("#member-count");
+const memberList = document.querySelector("#member-list");
+const roomStatus = document.querySelector("#room-status");
+const roomStartButton = document.querySelector("#room-start");
+const gamePlay = document.querySelector("#game-play");
+const gameStatus = document.querySelector("#game-status");
+const roundHeading = document.querySelector("#round-heading");
+const roundTimer = document.querySelector("#round-timer");
+const roundAudio = document.querySelector("#round-audio");
+const guessForm = document.querySelector("#guess-form");
+const soundChoices = document.querySelector("#sound-choices");
+const choicesPrompt = document.querySelector("#choices-prompt");
+const submitGuessButton = document.querySelector("#submit-guess");
+const roundResults = document.querySelector("#round-results");
+const gameLeaderboard = document.querySelector("#game-leaderboard");
 const joinForm = document.querySelector("#join-form");
 const joinRoomCodeInput = document.querySelector("#join-room-code");
 const copyCodeButton = document.querySelector("#copy-code");
@@ -19,6 +41,14 @@ const startGameButton = document.querySelector("#start-game");
 const lobbyPage = document.querySelector("#lobby-page");
 
 let activeRoomCode = "";
+let roomSocket;
+let currentRoomName = "";
+let pendingRoomName = "";
+let isSoloRoom = false;
+let startSoloWhenReady = false;
+let roomReady = false;
+let roomHandshakeFailed = false;
+let roundTimerId;
 let audioContext;
 let introHasStarted = false;
 let introAutoplayBlocked = false;
@@ -245,33 +275,333 @@ characterInputs.forEach((input) => {
   });
 });
 
-function createRoomCode() {
-  const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const values = new Uint32Array(5);
-  window.crypto.getRandomValues(values);
-  return Array.from(values, (value) => characters[value % characters.length]).join("");
+function backendBaseURL() {
+  const configuredBackend = document.querySelector('meta[name="game-backend"]').content.trim();
+  if (configuredBackend) {
+    return new URL(
+      configuredBackend.includes("://")
+        ? configuredBackend
+        : `${window.location.protocol}//${configuredBackend}`,
+    );
+  }
+
+  const localHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  const origin = localHost
+    ? `${window.location.protocol}//${window.location.hostname}:8080`
+    : window.location.origin;
+  return new URL(origin);
 }
 
-function openRoomDialog(title, roomCode) {
+function openRoomDashboard(title) {
   dialogTitle.textContent = title;
-  roomCodeLabel.textContent = roomCode;
+  roomCodeLabel.textContent = "CONNECTING";
   roomCodeLabel.hidden = false;
   joinForm.hidden = true;
-  activeRoomCode = roomCode;
-
-  if (!roomDialog.open) {
-    roomDialog.showModal();
-  }
+  roomMembers.hidden = true;
+  roomStartButton.hidden = true;
+  gamePlay.hidden = true;
+  copyCodeButton.hidden = true;
+  roomStatus.textContent = "Connecting to the game server...";
+  roomStatus.classList.remove("is-error");
+  roomMembers.hidden = false;
+  memberCount.textContent = "0 / 8";
+  memberList.replaceChildren();
+  activeRoomCode = "";
+  roomDialog.hidden = false;
+  lobbyPage.classList.add("has-room-dashboard");
 }
 
 function openJoinDialog() {
-  dialogTitle.textContent = "Join a game";
+  openRoomDashboard("Join a game");
   roomCodeLabel.hidden = true;
+  roomMembers.hidden = true;
   joinForm.hidden = false;
-  copyCodeButton.hidden = true;
+  roomStatus.textContent = "Enter the four-letter room code.";
   joinRoomCodeInput.value = "";
-  roomDialog.showModal();
   joinRoomCodeInput.focus();
+}
+
+function sendRoomMessage(message) {
+  if (roomSocket?.readyState !== WebSocket.OPEN) {
+    roomStatus.textContent = "Not connected to the game server.";
+    roomStatus.classList.add("is-error");
+    return false;
+  }
+  roomStatus.classList.remove("is-error");
+  gameStatus.classList.remove("is-error");
+  roomSocket.send(JSON.stringify(message));
+  return true;
+}
+
+function connectRoom(message, solo = false) {
+  stopRoundTimer();
+  roundAudio.pause();
+  roundAudio.removeAttribute("src");
+  roundAudio.load();
+  roundResults.hidden = true;
+  gameLeaderboard.hidden = true;
+  guessForm.hidden = false;
+  gameStatus.textContent = "";
+  gameStatus.classList.remove("is-error");
+  if (roomSocket && roomSocket.readyState < WebSocket.CLOSING) {
+    roomSocket.close(1000, "Switching rooms");
+  }
+  roomSocket = null;
+  openRoomDashboard(message.type === "create" ? "Your room" : "Joining room");
+  currentRoomName = message.name;
+  pendingRoomName = "";
+  isSoloRoom = solo;
+  startSoloWhenReady = solo;
+  roomReady = false;
+  roomHandshakeFailed = false;
+
+  let socket;
+  try {
+    const backend = backendBaseURL();
+    const endpoint = new URL("/ws", backend);
+    endpoint.protocol = backend.protocol === "https:" ? "wss:" : "ws:";
+    socket = new WebSocket(endpoint);
+  } catch (error) {
+    console.error("Unable to create the game server connection.", error);
+    roomStatus.textContent = "The game server address is invalid.";
+    roomStatus.classList.add("is-error");
+    return;
+  }
+  roomSocket = socket;
+  socket.addEventListener("open", () => {
+    if (roomSocket === socket) {
+      socket.send(JSON.stringify(message));
+    }
+  });
+  socket.addEventListener("message", (event) => {
+    if (roomSocket !== socket) {
+      return;
+    }
+    let response;
+    try {
+      response = JSON.parse(event.data);
+    } catch (error) {
+      console.error("The game server sent invalid JSON.", error);
+      roomStatus.textContent = "Received an invalid response from the game server.";
+      roomStatus.classList.add("is-error");
+      return;
+    }
+    handleServerMessage(response);
+  });
+  socket.addEventListener("error", () => {
+    if (roomSocket === socket) {
+      if (!roomReady) {
+        roomHandshakeFailed = true;
+      }
+      roomStatus.textContent = "Could not connect to the game server.";
+      roomStatus.classList.add("is-error");
+    }
+  });
+  socket.addEventListener("close", () => {
+    if (roomSocket === socket) {
+      roomSocket = null;
+      if (!roomHandshakeFailed) {
+        roomStatus.textContent = "Disconnected from the game server.";
+        roomStatus.classList.add("is-error");
+      }
+    }
+  });
+}
+
+function stopRoundTimer() {
+  if (roundTimerId !== undefined) {
+    window.clearInterval(roundTimerId);
+    roundTimerId = undefined;
+  }
+}
+
+function showRoundCountdown(endsAt) {
+  stopRoundTimer();
+  const update = () => {
+    const remaining = Math.max(0, endsAt - Date.now());
+    roundTimer.textContent = `${Math.ceil(remaining / 1000)}s`;
+  };
+  update();
+  roundTimerId = window.setInterval(update, 250);
+}
+
+function renderRoomState(state) {
+  roomReady = true;
+  if (pendingRoomName && state.players.some((player) => player.name === pendingRoomName)) {
+    currentRoomName = pendingRoomName;
+    pendingRoomName = "";
+  }
+  activeRoomCode = state.code;
+  roomCodeLabel.textContent = state.code;
+  roomCodeLabel.hidden = false;
+  copyCodeButton.hidden = !isSoloRoom && state.host !== currentRoomName;
+  memberCount.textContent = `${state.players.length} / 8`;
+  memberList.replaceChildren();
+
+  state.players.forEach((player) => {
+    const item = document.createElement("li");
+    const name = document.createElement("span");
+    name.textContent = player.name + (player.connected ? "" : " (disconnected)");
+    item.append(name);
+    if (player.name === state.host) {
+      const badge = document.createElement("span");
+      badge.className = "member-host";
+      badge.textContent = "HOST";
+      item.append(badge);
+    }
+    memberList.append(item);
+  });
+
+  roomStartButton.hidden = state.host !== currentRoomName || state.phase !== "lobby";
+  roomStartButton.disabled = !isSoloRoom && state.players.filter((player) => player.connected).length < 2;
+  roomStartButton.textContent = isSoloRoom ? "Start solo test" : "Start game";
+  roomStatus.classList.remove("is-error");
+  if (state.phase === "lobby") {
+    roomStatus.textContent = roomStartButton.disabled
+      ? "Waiting for at least one more player."
+      : "Room is ready.";
+  } else {
+    roomStatus.textContent = `Round ${state.round} of ${state.totalRounds}`;
+  }
+
+  if (state.phase === "lobby") {
+    gamePlay.hidden = gameLeaderboard.hidden;
+    stopRoundTimer();
+  } else {
+    gamePlay.hidden = false;
+  }
+
+  if (startSoloWhenReady && state.phase === "lobby" && state.host === currentRoomName) {
+    startSoloWhenReady = false;
+    sendRoomMessage({ type: "start" });
+  }
+}
+
+function renderRoundStart(round) {
+  gamePlay.hidden = false;
+  roomStartButton.hidden = true;
+  roundHeading.textContent = `ROUND ${round.round} / ${round.totalRounds}`;
+  gameStatus.textContent = `Select up to ${round.count} sound${round.count === 1 ? "" : "s"}.`;
+  choicesPrompt.textContent = `Which ${round.count} sound${round.count === 1 ? "" : "s"} do you hear?`;
+  roundResults.hidden = true;
+  gameLeaderboard.hidden = true;
+  gameStatus.classList.remove("is-error");
+  guessForm.hidden = false;
+  submitGuessButton.disabled = false;
+  soundChoices.replaceChildren();
+  const legend = document.createElement("legend");
+  legend.id = "choices-prompt";
+  legend.textContent = choicesPrompt.textContent;
+  soundChoices.append(legend);
+
+  round.choices.forEach((choice) => {
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.name = "sound";
+    checkbox.value = choice;
+    checkbox.addEventListener("change", () => {
+      const checked = soundChoices.querySelectorAll('input[name="sound"]:checked');
+      if (checked.length > round.count) {
+        checkbox.checked = false;
+        gameStatus.textContent = `Choose no more than ${round.count} sounds.`;
+      }
+    });
+    const text = document.createElement("span");
+    text.textContent = choice.replaceAll("_", " ");
+    label.append(checkbox, text);
+    soundChoices.append(label);
+  });
+
+  const audioURL = new URL(round.audioUrl, backendBaseURL());
+  roundAudio.src = audioURL.href;
+  roundAudio.load();
+  introAudio.pause();
+  roundAudio.play().catch((error) => {
+    if (error.name !== "NotAllowedError") {
+      console.error("Unable to play the round audio.", error);
+      gameStatus.textContent = "Audio could not be played. Use the audio controls to try again.";
+    }
+  });
+  showRoundCountdown(round.endsAt);
+}
+
+function renderRoundEnd(round) {
+  stopRoundTimer();
+  roundTimer.textContent = "";
+  guessForm.hidden = true;
+  roundResults.hidden = false;
+  const answerItem = document.createElement("li");
+  answerItem.textContent = `Answer: ${round.answer.join(", ")}`;
+  roundResults.replaceChildren(answerItem);
+  round.results.forEach((result) => {
+    const item = document.createElement("li");
+    item.textContent = `${result.name}: ${result.picks ? result.picks.join(", ") : "No answer"} (+${result.points})`;
+    roundResults.append(item);
+  });
+  gameStatus.textContent = "Round complete. Next round starts shortly.";
+}
+
+function renderGameOver(game) {
+  gameLeaderboard.replaceChildren();
+  game.leaderboard.forEach((player, index) => {
+    const item = document.createElement("li");
+    item.textContent = `${index + 1}. ${player.name} — ${player.score}`;
+    gameLeaderboard.append(item);
+  });
+  gameLeaderboard.hidden = false;
+  gamePlay.hidden = false;
+  gameStatus.textContent = "Game over. Final scores:";
+}
+
+function handleServerMessage(message) {
+  switch (message.type) {
+    case "room_state":
+      renderRoomState(message);
+      break;
+    case "round_start":
+      renderRoundStart(message);
+      break;
+    case "round_end":
+      renderRoundEnd(message);
+      break;
+    case "game_over":
+      renderGameOver(message);
+      break;
+    case "error":
+      pendingRoomName = "";
+      if (!roomReady) {
+        roomHandshakeFailed = true;
+      }
+      roomStatus.textContent = message.message;
+      roomStatus.classList.add("is-error");
+      gameStatus.textContent = message.message;
+      gameStatus.classList.add("is-error");
+      break;
+    default:
+      console.error("The game server sent an unknown message type.", message);
+      roomStatus.textContent = "Received an unknown response from the game server.";
+      roomStatus.classList.add("is-error");
+  }
+}
+
+function closeRoomDashboard() {
+  const socket = roomSocket;
+  roomSocket = null;
+  if (socket && socket.readyState < WebSocket.CLOSING) {
+    socket.close(1000, "Leaving room");
+  }
+  stopRoundTimer();
+  roundAudio.pause();
+  roundAudio.removeAttribute("src");
+  roundAudio.load();
+  roomDialog.hidden = true;
+  lobbyPage.classList.remove("has-room-dashboard");
+  copyCodeButton.textContent = "Copy code";
+  activeRoomCode = "";
+  currentRoomName = "";
+  isSoloRoom = false;
+  startSoloWhenReady = false;
 }
 
 function closeMenu() {
@@ -280,9 +610,7 @@ function closeMenu() {
   siteNav.classList.remove("is-open");
 }
 
-lobbyForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-
+function confirmPlayerName() {
   const playerName = playerNameInput.value.trim();
   if (!playerName) {
     playerNameInput.setCustomValidity("Enter a name.");
@@ -292,27 +620,72 @@ lobbyForm.addEventListener("submit", (event) => {
       () => playerNameInput.setCustomValidity(""),
       { once: true },
     );
-    return;
+    return "";
   }
 
+  playerNameInput.setCustomValidity("");
   playerNameInput.value = playerName;
-  const action = event.submitter.value;
+  nameStatus.textContent = `Name confirmed: ${playerName}`;
+  if (roomSocket && playerName !== currentRoomName) {
+    if (sendRoomMessage({ type: "rename", name: playerName })) {
+      pendingRoomName = playerName;
+    }
+  }
+  return playerName;
+}
 
-  if (action === "host") {
-    copyCodeButton.textContent = "Copy code";
-    openRoomDialog("Your room code", createRoomCode());
-    copyCodeButton.hidden = false;
+playerNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    confirmPlayerName();
+  }
+});
+
+playerNameInput.addEventListener("input", () => {
+  nameStatus.textContent = "";
+});
+
+joinRoomCodeInput.addEventListener("input", () => {
+  joinRoomCodeInput.value = joinRoomCodeInput.value.toUpperCase();
+  joinRoomCodeInput.setCustomValidity("");
+});
+
+lobbyForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  confirmPlayerName();
+});
+
+openHostButton.addEventListener("click", () => {
+  const playerName = confirmPlayerName();
+  if (!playerName) {
     return;
   }
-
-  openJoinDialog();
+  connectRoom({ type: "create", name: playerName });
 });
+
+openSoloButton.addEventListener("click", () => {
+  const playerName = confirmPlayerName();
+  if (!playerName) {
+    return;
+  }
+  connectRoom({ type: "create", name: playerName, solo: true }, true);
+});
+
+function showJoinDialog() {
+  if (!confirmPlayerName()) {
+    return;
+  }
+  openJoinDialog();
+}
+
+openJoinButton.addEventListener("click", showJoinDialog);
+otherRoomsButton.addEventListener("click", showJoinDialog);
 
 joinForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  const roomCode = joinRoomCodeInput.value.trim();
-  if (!roomCode) {
-    joinRoomCodeInput.setCustomValidity("Enter a room code.");
+  const roomCode = joinRoomCodeInput.value.trim().toUpperCase();
+  if (!/^[A-HJ-NP-Z]{4}$/.test(roomCode)) {
+    joinRoomCodeInput.setCustomValidity("Enter a valid 4-character room code.");
     joinRoomCodeInput.reportValidity();
     joinRoomCodeInput.addEventListener(
       "input",
@@ -323,23 +696,51 @@ joinForm.addEventListener("submit", (event) => {
   }
 
   joinRoomCodeInput.setCustomValidity("");
-  openRoomDialog("Join request", roomCode.toUpperCase());
-  copyCodeButton.hidden = true;
+  const playerName = confirmPlayerName();
+  if (!playerName) {
+    return;
+  }
+  connectRoom({ type: "join", room: roomCode, name: playerName });
+});
+
+roomStartButton.addEventListener("click", () => {
+  sendRoomMessage({ type: "start" });
+});
+
+guessForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const picks = Array.from(
+    soundChoices.querySelectorAll('input[name="sound"]:checked'),
+    (input) => input.value,
+  );
+  if (picks.length === 0) {
+    gameStatus.textContent = "Choose at least one sound before submitting.";
+    return;
+  }
+  if (sendRoomMessage({ type: "guess", picks })) {
+    submitGuessButton.disabled = true;
+    soundChoices.querySelectorAll("input").forEach((input) => {
+      input.disabled = true;
+    });
+    gameStatus.textContent = "Answer locked in.";
+  }
 });
 
 copyCodeButton.addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText(activeRoomCode);
     copyCodeButton.textContent = "Copied";
-  } catch {
+  } catch (error) {
+    console.error("Unable to copy the room code.", error);
     copyCodeButton.textContent = "Copy failed";
   }
 });
 
 doneButton.addEventListener("click", () => {
-  roomDialog.close();
-  copyCodeButton.textContent = "Copy code";
+  closeRoomDashboard();
 });
+
+roomCloseButton.addEventListener("click", closeRoomDashboard);
 
 menuToggle.addEventListener("click", () => {
   const isExpanded = menuToggle.getAttribute("aria-expanded") === "true";
@@ -359,6 +760,10 @@ siteNav.addEventListener("click", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !roomDialog.hidden) {
+    closeRoomDashboard();
+  }
+
   if (event.key === "Escape" && siteNav.classList.contains("is-open")) {
     closeMenu();
     menuToggle.focus();

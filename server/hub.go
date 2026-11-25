@@ -43,7 +43,7 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 	var room *Room
 	switch msg.Type {
 	case "create":
-		room = h.create()
+		room = h.create(msg.Solo)
 	case "join":
 		room = h.find(strings.ToUpper(strings.TrimSpace(msg.Room)))
 		if room == nil {
@@ -66,12 +66,12 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 	p.readLoop(ctx, room)
 }
 
-func (h *Hub) create() *Room {
+func (h *Hub) create(solo bool) *Room {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	code := h.newCode()
-	room := newRoom(code, h.sounds, h.audio, func() { h.remove(code) })
+	room := newRoom(code, h.sounds, h.audio, solo, func() { h.remove(code) })
 	h.rooms[code] = room
 	go room.run()
 	return room

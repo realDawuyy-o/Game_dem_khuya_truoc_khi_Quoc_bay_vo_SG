@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 )
 
 func main() {
@@ -17,5 +18,10 @@ func main() {
 	hub := newHub(sounds, audio)
 
 	log.Printf("listening on :%s with %d sounds", cfg.Port, len(sounds))
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, routes(cfg, hub, audio)))
+	server := &http.Server{
+		Addr:              ":" + cfg.Port,
+		Handler:           routes(cfg, hub, audio),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	log.Fatal(server.ListenAndServe())
 }

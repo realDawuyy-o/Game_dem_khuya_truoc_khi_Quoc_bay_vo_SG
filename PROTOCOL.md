@@ -5,6 +5,8 @@ Everything goes over one WebSocket. All messages are JSON with a `type` field.
 - WebSocket: `ws://<backend>/ws` (`wss://` in production)
 - Audio: `http://<backend>/audio/{id}` — the server sends the path, you prepend the backend host
 - Local dev backend: `localhost:8080`
+- The bundled client uses the same origin in production and `localhost:8080` when the web page is served locally.
+- To use a separate backend, set the `game-backend` meta tag in `web/index.html` to its host or full `https://` URL. The client automatically uses `wss://` for HTTPS.
 
 ## Game flow
 
@@ -14,7 +16,7 @@ connect → create / join → lobby ──host sends start──► round ──
                             └──────────────── game_over ◄───────────────────────┘
 ```
 
-- **lobby**: waiting for players. Host can start with 2–8 players.
+- **lobby**: waiting for players. A normal room needs 2–8 players. A solo test room can start with one.
 - **round**: mixed audio plays, players pick which sounds they hear. 20s, or ends early once everyone has guessed.
 - **reveal**: answer and points shown for 5s, then the next round starts automatically.
 - After round 10 the server sends `game_over` and the room goes back to **lobby**. Host can start again (scores reset).
@@ -26,6 +28,11 @@ connect → create / join → lobby ──host sends start──► round ──
 { "type": "create", "name": "Quoc" }
 ```
 Creates a room and makes you the host. You'll get a `room_state` with the room `code`.
+For a one-player local test, pass `"solo": true`; the room then accepts a start with its single player.
+
+```json
+{ "type": "create", "name": "Quoc", "solo": true }
+```
 
 ### `join` (first message only)
 ```json
@@ -46,6 +53,12 @@ Creates a room and makes you the host. You'll get a `room_state` with the room `
 ```
 - 1 to `count` picks, each must be from `choices`.
 - One guess per round, can't change it after sending.
+
+### `rename` (any time)
+```json
+{ "type": "rename", "name": "New name" }
+```
+Changes your name in the room. Names remain unique and limited to 1–16 characters.
 
 ## Server → client
 
@@ -124,8 +137,10 @@ Per correct pick: **100 + speed bonus** (up to 50, shrinks to 0 as the timer run
 ## Minimal client
 
 ```js
-const BACKEND = "localhost:8080";
-const ws = new WebSocket(`ws://${BACKEND}/ws`);
+const BACKEND = "http://localhost:8080";
+const socketURL = new URL("/ws", BACKEND);
+socketURL.protocol = socketURL.protocol === "https:" ? "wss:" : "ws:";
+const ws = new WebSocket(socketURL);
 
 ws.onopen = () => ws.send(JSON.stringify({ type: "join", room: "ABCD", name: "Minh" }));
 
@@ -134,7 +149,7 @@ ws.onmessage = (e) => {
   switch (msg.type) {
     case "room_state": /* render lobby / scoreboard */ break;
     case "round_start":
-      new Audio(`http://${BACKEND}${msg.audioUrl}`).play();
+      new Audio(new URL(msg.audioUrl, BACKEND)).play();
       /* show msg.choices, let the player pick msg.count of them */
       break;
     case "round_end": /* show msg.answer and msg.results */ break;
@@ -146,5 +161,9 @@ ws.onmessage = (e) => {
 // on submit:
 ws.send(JSON.stringify({ type: "guess", picks: ["cat", "dog"] }));
 ```
+
+## Azure/container deployment
+
+The root `Dockerfile` serves the web app, WebSocket API, health endpoint, and round audio from one container. It reads `PORT`, `SOUNDS_DIR`, and `WEB_DIR`; the defaults in the image are ready for Azure App Service for Containers. Keep the container port at `8080`, enable WebSockets in the App Service, and configure `ALLOWED_ORIGINS` to the exact browser origin only when the UI is hosted separately. The GitHub Actions workflow runs tests, checks the client syntax, and builds the image on pushes and pull requests. Publishing the image and deploying it to Azure can be added later with the target Azure resource and GitHub secrets.
 
 Browsers block audio until the user has interacted with the page, so the join/create button click is enough to unlock it.
