@@ -14,6 +14,9 @@ const newsletterStatus = document.querySelector("#newsletter-status");
 const characterInputs = document.querySelectorAll('input[name="character"]');
 const muteToggle = document.querySelector("#mute-toggle");
 const introAudio = document.querySelector("#intro-audio");
+const readyScreen = document.querySelector("#ready-screen");
+const startGameButton = document.querySelector("#start-game");
+const lobbyPage = document.querySelector("#lobby-page");
 
 let activeRoomCode = "";
 let audioContext;
@@ -207,6 +210,17 @@ async function previewCharacter(characterId) {
 }
 
 updateMuteToggle();
+startGameButton.addEventListener("click", () => {
+  readyScreen.hidden = true;
+  lobbyPage.hidden = false;
+  if (soundsMuted) {
+    soundsMuted = false;
+    saveMutePreference();
+  }
+  updateMuteToggle();
+  attemptIntroPlayback();
+});
+
 muteToggle.addEventListener("click", () => {
   if (introAutoplayBlocked && !soundsMuted && !introHasStarted) {
     attemptIntroPlayback();
@@ -230,10 +244,6 @@ characterInputs.forEach((input) => {
     }
   });
 });
-
-if (!soundsMuted) {
-  attemptIntroPlayback();
-}
 
 function createRoomCode() {
   const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
