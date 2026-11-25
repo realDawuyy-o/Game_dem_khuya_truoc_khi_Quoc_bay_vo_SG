@@ -1,4 +1,5 @@
 name: Build and deploy Go app to Azure Web App - le2hb-messenger1
+
 on:
   push:
     branches:
