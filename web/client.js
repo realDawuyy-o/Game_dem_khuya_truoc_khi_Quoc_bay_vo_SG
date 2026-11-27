@@ -25,6 +25,9 @@ const choicesPrompt = document.querySelector("#choices-prompt");
 const submitGuessButton = document.querySelector("#submit-guess");
 const roundResults = document.querySelector("#round-results");
 const gameLeaderboard = document.querySelector("#game-leaderboard");
+const gameScreen = document.querySelector("#game-screen");
+const gamePlayerList = document.querySelector("#game-player-list");
+const leaveGameButton = document.querySelector("#leave-game");
 const joinForm = document.querySelector("#join-form");
 const joinRoomCodeInput = document.querySelector("#join-room-code");
 const copyCodeButton = document.querySelector("#copy-code");
@@ -39,6 +42,20 @@ const introAudio = document.querySelector("#intro-audio");
 const readyScreen = document.querySelector("#ready-screen");
 const startGameButton = document.querySelector("#start-game");
 const lobbyPage = document.querySelector("#lobby-page");
+const lobbyShell = document.querySelector(".lobby-shell");
+
+const characterSprites = {
+  krill: "magpie",
+  remix: "koala",
+  trumpet: "panda",
+  bamboo: "tiger",
+  maestro: "crane",
+  boomer: "axolotl",
+  howler: "jaguar",
+  panpipe: "lemur",
+  kalimba: "beaver",
+  kiwi: "kiwi",
+};
 
 let activeRoomCode = "";
 let roomSocket;
@@ -300,6 +317,9 @@ function openRoomDashboard(title) {
   roomMembers.hidden = true;
   roomStartButton.hidden = true;
   gamePlay.hidden = true;
+  gameScreen.hidden = true;
+  lobbyShell.hidden = false;
+  lobbyPage.classList.remove("is-playing");
   copyCodeButton.hidden = true;
   roomStatus.textContent = "Connecting to the game server...";
   roomStatus.classList.remove("is-error");
@@ -347,6 +367,7 @@ function connectRoom(message, solo = false) {
     roomSocket.close(1000, "Switching rooms");
   }
   roomSocket = null;
+  message.character = document.querySelector('input[name="character"]:checked').value;
   openRoomDashboard(message.type === "create" ? "Your room" : "Joining room");
   currentRoomName = message.name;
   pendingRoomName = "";
@@ -425,6 +446,25 @@ function showRoundCountdown(endsAt) {
   roundTimerId = window.setInterval(update, 250);
 }
 
+function showGameScreen(isPlaying) {
+  gameScreen.hidden = !isPlaying;
+  lobbyShell.hidden = isPlaying;
+  roomDialog.hidden = isPlaying;
+  lobbyPage.classList.toggle("is-playing", isPlaying);
+}
+
+function createAvatar(character) {
+  const svgNS = "http://www.w3.org/2000/svg";
+  const avatar = document.createElementNS(svgNS, "svg");
+  const use = document.createElementNS(svgNS, "use");
+  avatar.classList.add("player-avatar");
+  avatar.setAttribute("viewBox", "0 0 24 24");
+  avatar.setAttribute("aria-hidden", "true");
+  use.setAttribute("href", `#sprite-${characterSprites[character] ?? characterSprites.krill}`);
+  avatar.append(use);
+  return avatar;
+}
+
 function renderRoomState(state) {
   roomReady = true;
   if (pendingRoomName && state.players.some((player) => player.name === pendingRoomName)) {
@@ -437,12 +477,17 @@ function renderRoomState(state) {
   copyCodeButton.hidden = !isSoloRoom && state.host !== currentRoomName;
   memberCount.textContent = `${state.players.length} / 8`;
   memberList.replaceChildren();
+  gamePlayerList.replaceChildren();
 
   state.players.forEach((player) => {
     const item = document.createElement("li");
+    const identity = document.createElement("span");
+    identity.className = "member-identity";
+    identity.append(createAvatar(player.character));
     const name = document.createElement("span");
     name.textContent = player.name + (player.connected ? "" : " (disconnected)");
-    item.append(name);
+    identity.append(name);
+    item.append(identity);
     if (player.name === state.host) {
       const badge = document.createElement("span");
       badge.className = "member-host";
@@ -450,9 +495,25 @@ function renderRoomState(state) {
       item.append(badge);
     }
     memberList.append(item);
+
+    const gameItem = document.createElement("li");
+    const gameIdentity = document.createElement("span");
+    gameIdentity.className = "score-identity";
+    gameIdentity.append(createAvatar(player.character));
+    const gameName = document.createElement("span");
+    gameName.className = "game-player-name";
+    gameName.textContent = player.name;
+    gameIdentity.append(gameName);
+    const score = document.createElement("span");
+    score.className = "game-player-score";
+    score.textContent = String(player.score);
+    gameItem.append(gameIdentity, score);
+    gamePlayerList.append(gameItem);
   });
 
-  roomStartButton.hidden = state.host !== currentRoomName || state.phase !== "lobby";
+  const isPlaying = state.phase !== "lobby";
+  showGameScreen(isPlaying);
+  roomStartButton.hidden = state.host !== currentRoomName || isPlaying;
   roomStartButton.disabled = !isSoloRoom && state.players.filter((player) => player.connected).length < 2;
   roomStartButton.textContent = isSoloRoom ? "Start solo test" : "Start game";
   roomStatus.classList.remove("is-error");
@@ -464,8 +525,8 @@ function renderRoomState(state) {
     roomStatus.textContent = `Round ${state.round} of ${state.totalRounds}`;
   }
 
-  if (state.phase === "lobby") {
-    gamePlay.hidden = gameLeaderboard.hidden;
+  if (!isPlaying) {
+    gamePlay.hidden = true;
     stopRoundTimer();
   } else {
     gamePlay.hidden = false;
@@ -478,6 +539,7 @@ function renderRoomState(state) {
 }
 
 function renderRoundStart(round) {
+  showGameScreen(true);
   gamePlay.hidden = false;
   roomStartButton.hidden = true;
   roundHeading.textContent = `ROUND ${round.round} / ${round.totalRounds}`;
@@ -536,7 +598,13 @@ function renderRoundEnd(round) {
   roundResults.replaceChildren(answerItem);
   round.results.forEach((result) => {
     const item = document.createElement("li");
-    item.textContent = `${result.name}: ${result.picks ? result.picks.join(", ") : "No answer"} (+${result.points})`;
+    const identity = document.createElement("span");
+    identity.className = "score-identity";
+    identity.append(createAvatar(result.character));
+    const summary = document.createElement("span");
+    summary.textContent = `${result.name}: ${result.picks ? result.picks.join(", ") : "No answer"} (+${result.points})`;
+    identity.append(summary);
+    item.append(identity);
     roundResults.append(item);
   });
   gameStatus.textContent = "Round complete. Next round starts shortly.";
@@ -546,11 +614,18 @@ function renderGameOver(game) {
   gameLeaderboard.replaceChildren();
   game.leaderboard.forEach((player, index) => {
     const item = document.createElement("li");
-    item.textContent = `${index + 1}. ${player.name} — ${player.score}`;
+    const identity = document.createElement("span");
+    identity.className = "score-identity";
+    identity.append(createAvatar(player.character));
+    const name = document.createElement("span");
+    name.textContent = `${index + 1}. ${player.name} — ${player.score}`;
+    identity.append(name);
+    item.append(identity);
     gameLeaderboard.append(item);
   });
   gameLeaderboard.hidden = false;
   gamePlay.hidden = false;
+  showGameScreen(true);
   gameStatus.textContent = "Game over. Final scores:";
 }
 
@@ -596,6 +671,9 @@ function closeRoomDashboard() {
   roundAudio.removeAttribute("src");
   roundAudio.load();
   roomDialog.hidden = true;
+  gameScreen.hidden = true;
+  lobbyShell.hidden = false;
+  lobbyPage.classList.remove("is-playing");
   lobbyPage.classList.remove("has-room-dashboard");
   copyCodeButton.textContent = "Copy code";
   activeRoomCode = "";
@@ -741,6 +819,7 @@ doneButton.addEventListener("click", () => {
 });
 
 roomCloseButton.addEventListener("click", closeRoomDashboard);
+leaveGameButton.addEventListener("click", closeRoomDashboard);
 
 menuToggle.addEventListener("click", () => {
   const isExpanded = menuToggle.getAttribute("aria-expanded") === "true";

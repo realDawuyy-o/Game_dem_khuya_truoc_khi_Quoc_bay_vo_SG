@@ -2,11 +2,12 @@ package main
 
 // inMsg is every client → server message. One flat struct; each type only uses the fields it needs.
 type inMsg struct {
-	Type  string   `json:"type"`            // create, join, start, guess, rename
-	Name  string   `json:"name,omitempty"`  // create, join, rename
-	Room  string   `json:"room,omitempty"`  // join
-	Solo  bool     `json:"solo,omitempty"`  // create
-	Picks []string `json:"picks,omitempty"` // guess
+	Type      string   `json:"type"`                // create, join, start, guess, rename
+	Name      string   `json:"name,omitempty"`      // create, join, rename
+	Character string   `json:"character,omitempty"` // create, join
+	Room      string   `json:"room,omitempty"`      // join
+	Solo      bool     `json:"solo,omitempty"`      // create
+	Picks     []string `json:"picks,omitempty"`     // guess
 }
 
 type errorOut struct {
@@ -20,6 +21,7 @@ func errorMsg(text string) errorOut {
 
 type playerOut struct {
 	Name      string `json:"name"`
+	Character string `json:"character"`
 	Score     int    `json:"score"`
 	Connected bool   `json:"connected"`
 	Guessed   bool   `json:"guessed"`
@@ -46,9 +48,10 @@ type roundStartOut struct {
 }
 
 type resultOut struct {
-	Name   string   `json:"name"`
-	Picks  []string `json:"picks"`
-	Points int      `json:"points"`
+	Name      string   `json:"name"`
+	Character string   `json:"character"`
+	Picks     []string `json:"picks"`
+	Points    int      `json:"points"`
 }
 
 type roundEndOut struct {
@@ -58,8 +61,9 @@ type roundEndOut struct {
 }
 
 type scoreOut struct {
-	Name  string `json:"name"`
-	Score int    `json:"score"`
+	Name      string `json:"name"`
+	Character string `json:"character"`
+	Score     int    `json:"score"`
 }
 
 type gameOverOut struct {

@@ -25,18 +25,19 @@ connect → create / join → lobby ──host sends start──► round ──
 
 ### `create` (first message only)
 ```json
-{ "type": "create", "name": "Quoc" }
+{ "type": "create", "name": "Quoc", "character": "krill" }
 ```
 Creates a room and makes you the host. You'll get a `room_state` with the room `code`.
+`character` is the selected character ID: `krill`, `remix`, `trumpet`, `bamboo`, `maestro`, `boomer`, `howler`, `panpipe`, `kalimba`, or `kiwi`. It defaults to `krill` when omitted.
 For a one-player local test, pass `"solo": true`; the room then accepts a start with its single player.
 
 ```json
-{ "type": "create", "name": "Quoc", "solo": true }
+{ "type": "create", "name": "Quoc", "character": "krill", "solo": true }
 ```
 
 ### `join` (first message only)
 ```json
-{ "type": "join", "room": "ABCD", "name": "Minh" }
+{ "type": "join", "room": "ABCD", "name": "Minh", "character": "remix" }
 ```
 - Name: 1–16 characters, unique in the room.
 - Room code is case-insensitive.
@@ -73,8 +74,8 @@ Sent whenever anything changes (join, leave, guess, phase change). Just re-rende
   "round": 0,
   "totalRounds": 10,
   "players": [
-    { "name": "Quoc", "score": 0, "connected": true, "guessed": false },
-    { "name": "Minh", "score": 0, "connected": true, "guessed": false }
+    { "name": "Quoc", "character": "krill", "score": 0, "connected": true, "guessed": false },
+    { "name": "Minh", "character": "remix", "score": 0, "connected": true, "guessed": false }
   ]
 }
 ```
@@ -103,8 +104,8 @@ Sent whenever anything changes (join, leave, guess, phase change). Just re-rende
   "type": "round_end",
   "answer": ["cat", "owl"],
   "results": [
-    { "name": "Quoc", "picks": ["cat", "dog"], "points": 140 },
-    { "name": "Minh", "picks": null, "points": 0 }
+    { "name": "Quoc", "character": "krill", "picks": ["cat", "dog"], "points": 140 },
+    { "name": "Minh", "character": "remix", "picks": null, "points": 0 }
   ]
 }
 ```
@@ -115,8 +116,8 @@ Sent whenever anything changes (join, leave, guess, phase change). Just re-rende
 {
   "type": "game_over",
   "leaderboard": [
-    { "name": "Quoc", "score": 2310 },
-    { "name": "Minh", "score": 1980 }
+    { "name": "Quoc", "character": "krill", "score": 2310 },
+    { "name": "Minh", "character": "remix", "score": 1980 }
   ]
 }
 ```
@@ -128,7 +129,7 @@ Sorted highest first. Followed by a `room_state` with `phase: "lobby"`.
 ```
 If it's a reply to `create`/`join`, the server closes the connection after sending it. Otherwise the connection stays open.
 
-Messages you might see: `name must be 1-16 characters`, `room not found`, `name already taken`, `game already started`, `room is full`, `room closed`, `only the host can start`, `need at least 2 players`, `not accepting guesses right now`, `already guessed this round`, `pick 1 to N sounds`, `not a choice: X`.
+Messages you might see: `name must be 1-16 characters`, `unknown character`, `room not found`, `name already taken`, `game already started`, `room is full`, `room closed`, `only the host can start`, `need at least 2 players`, `not accepting guesses right now`, `already guessed this round`, `pick 1 to N sounds`, `not a choice: X`.
 
 ## Scoring
 

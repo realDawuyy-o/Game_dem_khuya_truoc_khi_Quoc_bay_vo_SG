@@ -16,9 +16,10 @@ const (
 )
 
 type Player struct {
-	name string
-	conn *websocket.Conn
-	send chan any
+	name      string
+	character string
+	conn      *websocket.Conn
+	send      chan any
 }
 
 func newPlayer(name string, conn *websocket.Conn) *Player {

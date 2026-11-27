@@ -39,6 +39,14 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 		wsjson.Write(ctx, conn, errorMsg("name must be 1-16 characters"))
 		return
 	}
+	character := msg.Character
+	if character == "" {
+		character = "krill"
+	}
+	if !isValidCharacter(character) {
+		wsjson.Write(ctx, conn, errorMsg("unknown character"))
+		return
+	}
 
 	var room *Room
 	switch msg.Type {
@@ -56,6 +64,7 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 	}
 
 	p := newPlayer(name, conn)
+	p.character = character
 	if err := room.join(p); err != nil {
 		wsjson.Write(ctx, conn, errorMsg(err.Error()))
 		return
@@ -65,6 +74,15 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 	go p.writeLoop(ctx)
 	go p.pingLoop(ctx)
 	p.readLoop(ctx, room)
+}
+
+func isValidCharacter(character string) bool {
+	switch character {
+	case "krill", "remix", "trumpet", "bamboo", "maestro", "boomer", "howler", "panpipe", "kalimba", "kiwi":
+		return true
+	default:
+		return false
+	}
 }
 
 func (h *Hub) create(solo bool) *Room {

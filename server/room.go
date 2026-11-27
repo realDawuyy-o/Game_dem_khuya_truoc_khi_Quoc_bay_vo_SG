@@ -34,6 +34,7 @@ var errRoomClosed = errors.New("room closed")
 type member struct {
 	player    *Player // nil while disconnected mid-game
 	name      string
+	character string
 	score     int
 	picks     []string
 	guessed   bool
@@ -168,6 +169,9 @@ func (r *Room) addPlayer(p *Player) error {
 			return errors.New("name already taken")
 		}
 		m.player = p // reconnecting mid-game keeps their score
+		if p.character != "" {
+			m.character = p.character
+		}
 		if r.phase == phaseRound {
 			p.deliver(r.current)
 		}
@@ -182,7 +186,7 @@ func (r *Room) addPlayer(p *Player) error {
 		return errors.New("room is full")
 	}
 
-	r.members = append(r.members, &member{player: p, name: p.name})
+	r.members = append(r.members, &member{player: p, name: p.name, character: p.character})
 	if r.host == "" {
 		r.host = p.name
 	}
@@ -319,7 +323,7 @@ func (r *Room) endRound() {
 	for _, m := range r.members {
 		pts := r.points(m)
 		m.score += pts
-		results = append(results, resultOut{Name: m.name, Picks: m.picks, Points: pts})
+		results = append(results, resultOut{Name: m.name, Character: m.character, Picks: m.picks, Points: pts})
 	}
 	r.broadcast(roundEndOut{Type: "round_end", Answer: r.answer, Results: results})
 	r.broadcastState()
@@ -334,7 +338,7 @@ func (r *Room) endRound() {
 func (r *Room) endGame() {
 	board := make([]scoreOut, 0, len(r.members))
 	for _, m := range r.members {
-		board = append(board, scoreOut{Name: m.name, Score: m.score})
+		board = append(board, scoreOut{Name: m.name, Character: m.character, Score: m.score})
 	}
 	slices.SortStableFunc(board, func(a, b scoreOut) int { return cmp.Compare(b.Score, a.Score) })
 
@@ -385,6 +389,7 @@ func (r *Room) broadcastState() {
 	for _, m := range r.members {
 		players = append(players, playerOut{
 			Name:      m.name,
+			Character: m.character,
 			Score:     m.score,
 			Connected: m.player != nil,
 			Guessed:   m.guessed,

@@ -12,7 +12,7 @@
     <title>BADABUM — MAKE MUSIC TOGETHER</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Press+Start+2P&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="preload" href="background.gif" as="image" />
     <link rel="stylesheet" href="style.css" />
     <script src="client.js" defer></script>
@@ -201,6 +201,18 @@
         </section>
         <p class="room-status" id="room-status" role="status" aria-live="polite"></p>
         <button class="game-button room-start-button" id="room-start" type="button" hidden>Start game</button>
+        <p class="dialog-note">Share your code, gather your soundmates, and play together.</p>
+        <div class="dialog-actions">
+          <button class="copy-button game-button" id="copy-code" type="button" hidden>Copy code</button>
+          <button class="done-button game-button" id="dialog-done" type="button">Done</button>
+        </div>
+      </aside>
+      <section class="game-screen" id="game-screen" aria-label="Game in progress" hidden>
+        <header class="game-screen-heading">
+          <p class="eyebrow">The jam is on</p>
+          <h2>LET'S PLAY!</h2>
+        </header>
+        <ul class="game-player-list" id="game-player-list" aria-label="Players in this game"></ul>
         <section class="game-play" id="game-play" aria-label="Game round" hidden>
           <div class="game-play-heading">
             <h3 id="round-heading">ROUND 1 / 10</h3>
@@ -216,13 +228,9 @@
           </form>
           <ol class="round-results" id="round-results" hidden></ol>
           <ol class="game-leaderboard" id="game-leaderboard" hidden></ol>
+          <button class="game-button leave-game-button" id="leave-game" type="button">Leave game</button>
         </section>
-        <p class="dialog-note">Share your code, gather your soundmates, and play together.</p>
-        <div class="dialog-actions">
-          <button class="copy-button game-button" id="copy-code" type="button" hidden>Copy code</button>
-          <button class="done-button game-button" id="dialog-done" type="button">Done</button>
-        </div>
-      </aside>
+      </section>
     </main>
 
     <audio id="intro-audio" src="intro.mp3" preload="auto"></audio>

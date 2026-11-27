@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+  font-family: var(--font-family);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --paper: #f4eddc;
@@ -15,8 +15,9 @@
   --ink: #2b3a2f;
   --night-teal: #12404f;
   --night-green: #1e3a2b;
-  --pixel-font: "Press Start 2P", "Courier New", monospace;
-  --display-font: "Fraunces", Georgia, serif;
+  --font-family: "Nunito", sans-serif;
+  --pixel-font: var(--font-family);
+  --display-font: var(--font-family);
 }
 
 * {
@@ -82,7 +83,9 @@ body::after {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -242,6 +245,71 @@ summary:focus-visible {
 
 .lobby-page.has-room-dashboard .lobby-shell {
   width: 100%;
+}
+
+.lobby-page.is-playing {
+  grid-template-columns: minmax(0, 620px);
+  align-content: center;
+  justify-content: center;
+}
+
+.game-screen {
+  width: min(100%, 620px);
+  padding: 20px;
+  border: 2px solid var(--deep-teal);
+  background: rgba(244, 237, 220, 0.94);
+  box-shadow: 6px 6px 0 var(--olive);
+}
+
+.game-screen-heading {
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.game-screen-heading h2 {
+  margin: 0;
+  color: var(--forest);
+  font-family: var(--display-font);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.game-player-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.game-player-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--olive);
+  background: var(--paper-lighter);
+  font-size: 12px;
+}
+
+.game-player-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-player-score {
+  flex: 0 0 auto;
+  color: var(--deep-teal);
+  font-weight: 800;
+}
+
+.game-screen[hidden],
+.game-play[hidden] {
+  display: none;
 }
 
 .room-dialog[hidden] {
@@ -858,6 +926,28 @@ summary:focus-visible {
   font-size: 13px;
 }
 
+.member-identity,
+.score-identity {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.member-identity {
+  overflow-wrap: anywhere;
+}
+
+.player-avatar {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--olive);
+  border-radius: 50%;
+  background: var(--paper);
+}
+
 .member-host {
   color: var(--deep-teal);
   font-family: var(--pixel-font);
@@ -898,6 +988,14 @@ summary:focus-visible {
   border: 2px solid var(--deep-teal);
   background: rgba(255, 255, 255, 0.26);
   text-align: left;
+}
+
+.leave-game-button {
+  justify-self: center;
+  width: auto;
+  min-height: 36px;
+  padding: 6px 14px;
+  font-size: 12px;
 }
 
 .game-play-heading {
@@ -973,6 +1071,9 @@ summary:focus-visible {
 
 .round-results li,
 .game-leaderboard li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-block: 4px;
 }
 
