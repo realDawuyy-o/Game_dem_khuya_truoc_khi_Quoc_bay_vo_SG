@@ -8,7 +8,12 @@ const otherRoomsButton = document.querySelector("#other-rooms");
 const roomDialog = document.querySelector("#room-dialog");
 const dialogTitle = document.querySelector("#dialog-title");
 const roomCodeLabel = document.querySelector("#room-code");
+const roomModeLabel = document.querySelector("#room-mode");
 const roomCloseButton = document.querySelector("#room-close");
+const modePicker = document.querySelector("#mode-picker");
+const modeCancelButton = document.querySelector("#mode-cancel");
+const dialogNote = document.querySelector(".dialog-note");
+const dialogActions = document.querySelector(".dialog-actions");
 const roomMembers = document.querySelector("#room-members");
 const memberCount = document.querySelector("#member-count");
 const memberList = document.querySelector("#member-list");
@@ -57,6 +62,12 @@ const characterSprites = {
   kiwi: "kiwi",
 };
 
+const gameModeNames = {
+  sound_mix: "Sound Mix",
+  beat_builder: "Beat Builder",
+  animal_groove: "Animal Groove",
+};
+
 let activeRoomCode = "";
 let roomSocket;
 let currentRoomName = "";
@@ -65,6 +76,8 @@ let isSoloRoom = false;
 let startSoloWhenReady = false;
 let roomReady = false;
 let roomHandshakeFailed = false;
+let pendingHostName = "";
+let pendingSoloMode = false;
 let roundTimerId;
 let audioContext;
 let introHasStarted = false;
@@ -313,7 +326,11 @@ function openRoomDashboard(title) {
   dialogTitle.textContent = title;
   roomCodeLabel.textContent = "CONNECTING";
   roomCodeLabel.hidden = false;
+  roomModeLabel.hidden = true;
   joinForm.hidden = true;
+  modePicker.hidden = true;
+  dialogNote.hidden = false;
+  dialogActions.hidden = false;
   roomMembers.hidden = true;
   roomStartButton.hidden = true;
   gamePlay.hidden = true;
@@ -322,13 +339,26 @@ function openRoomDashboard(title) {
   lobbyPage.classList.remove("is-playing");
   copyCodeButton.hidden = true;
   roomStatus.textContent = "Connecting to the game server...";
+  roomStatus.hidden = false;
   roomStatus.classList.remove("is-error");
   roomMembers.hidden = false;
-  memberCount.textContent = "0 / 8";
+  memberCount.textContent = "0 / 32";
   memberList.replaceChildren();
   activeRoomCode = "";
   roomDialog.hidden = false;
   lobbyPage.classList.add("has-room-dashboard");
+}
+
+function openModePicker(playerName, solo = false) {
+  openRoomDashboard("Choose a game mode");
+  pendingHostName = playerName;
+  pendingSoloMode = solo;
+  roomCodeLabel.hidden = true;
+  roomMembers.hidden = true;
+  roomStatus.hidden = true;
+  modePicker.hidden = false;
+  dialogNote.hidden = true;
+  dialogActions.hidden = true;
 }
 
 function openJoinDialog() {
@@ -474,8 +504,10 @@ function renderRoomState(state) {
   activeRoomCode = state.code;
   roomCodeLabel.textContent = state.code;
   roomCodeLabel.hidden = false;
+  roomModeLabel.textContent = `MODE · ${gameModeNames[state.mode] ?? state.mode}`;
+  roomModeLabel.hidden = false;
   copyCodeButton.hidden = !isSoloRoom && state.host !== currentRoomName;
-  memberCount.textContent = `${state.players.length} / 8`;
+  memberCount.textContent = `${state.players.length} / ${state.maxPlayers}`;
   memberList.replaceChildren();
   gamePlayerList.replaceChildren();
 
@@ -514,7 +546,8 @@ function renderRoomState(state) {
   const isPlaying = state.phase !== "lobby";
   showGameScreen(isPlaying);
   roomStartButton.hidden = state.host !== currentRoomName || isPlaying;
-  roomStartButton.disabled = !isSoloRoom && state.players.filter((player) => player.connected).length < 2;
+  roomStartButton.disabled =
+    !isSoloRoom && state.players.filter((player) => player.connected).length < state.minPlayers;
   roomStartButton.textContent = isSoloRoom ? "Start solo test" : "Start game";
   roomStatus.classList.remove("is-error");
   if (state.phase === "lobby") {
@@ -678,6 +711,8 @@ function closeRoomDashboard() {
   copyCodeButton.textContent = "Copy code";
   activeRoomCode = "";
   currentRoomName = "";
+  pendingHostName = "";
+  pendingSoloMode = false;
   isSoloRoom = false;
   startSoloWhenReady = false;
 }
@@ -738,7 +773,7 @@ openHostButton.addEventListener("click", () => {
   if (!playerName) {
     return;
   }
-  connectRoom({ type: "create", name: playerName });
+  openModePicker(playerName);
 });
 
 openSoloButton.addEventListener("click", () => {
@@ -746,8 +781,26 @@ openSoloButton.addEventListener("click", () => {
   if (!playerName) {
     return;
   }
-  connectRoom({ type: "create", name: playerName, solo: true }, true);
+  openModePicker(playerName, true);
 });
+
+modePicker.addEventListener("click", (event) => {
+  const option = event.target.closest("[data-game-mode]");
+  if (!option || option.disabled || !pendingHostName) {
+    return;
+  }
+  connectRoom(
+    {
+      type: "create",
+      name: pendingHostName,
+      mode: option.dataset.gameMode,
+      solo: pendingSoloMode,
+    },
+    pendingSoloMode,
+  );
+});
+
+modeCancelButton.addEventListener("click", closeRoomDashboard);
 
 function showJoinDialog() {
   if (!confirmPlayerName()) {

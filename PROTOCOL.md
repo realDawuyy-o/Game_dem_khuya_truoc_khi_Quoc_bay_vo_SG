@@ -16,23 +16,28 @@ connect → create / join → lobby ──host sends start──► round ──
                             └──────────────── game_over ◄───────────────────────┘
 ```
 
-- **lobby**: waiting for players. A normal room needs 2–8 players. A solo test room can start with one.
+- **lobby**: waiting for players. Sound Mix rooms support 2–32 players. A solo test room can start with one.
 - **round**: mixed audio plays, players pick which sounds they hear. 20s, or ends early once everyone has guessed.
 - **reveal**: answer and points shown for 5s, then the next round starts automatically.
 - After round 10 the server sends `game_over` and the room goes back to **lobby**. Host can start again (scores reset).
+
+## Adding a game mode
+
+Use the entries in `server/game_modes.go` as the shared mode template: each mode declares its ID, player bounds, round count, and solo/availability flags. Add a matching picker card in `web/index.html` and display name in `web/client.js`. Future modes reuse the room's multiplayer membership, host checks, phase/state broadcasts, reconnect behavior, and round lifecycle; implement their own round-start, input, reveal, and scoring rules before marking them available. Keep unfinished modes disabled in the picker so players cannot create rooms that have no gameplay handlers.
 
 ## Client → server
 
 ### `create` (first message only)
 ```json
-{ "type": "create", "name": "Quoc", "character": "krill" }
+{ "type": "create", "name": "Quoc", "character": "krill", "mode": "sound_mix" }
 ```
 Creates a room and makes you the host. You'll get a `room_state` with the room `code`.
 `character` is the selected character ID: `krill`, `remix`, `trumpet`, `bamboo`, `maestro`, `boomer`, `howler`, `panpipe`, `kalimba`, or `kiwi`. It defaults to `krill` when omitted.
+`mode` defaults to `sound_mix` when omitted. `beat_builder` and `animal_groove` are reserved mode templates and cannot be hosted until their round handlers are implemented.
 For a one-player local test, pass `"solo": true`; the room then accepts a start with its single player.
 
 ```json
-{ "type": "create", "name": "Quoc", "character": "krill", "solo": true }
+{ "type": "create", "name": "Quoc", "character": "krill", "mode": "sound_mix", "solo": true }
 ```
 
 ### `join` (first message only)
@@ -69,6 +74,9 @@ Sent whenever anything changes (join, leave, guess, phase change). Just re-rende
 {
   "type": "room_state",
   "code": "ABCD",
+  "mode": "sound_mix",
+  "minPlayers": 2,
+  "maxPlayers": 32,
   "phase": "lobby",            // lobby | round | reveal
   "host": "Quoc",
   "round": 0,
@@ -129,7 +137,7 @@ Sorted highest first. Followed by a `room_state` with `phase: "lobby"`.
 ```
 If it's a reply to `create`/`join`, the server closes the connection after sending it. Otherwise the connection stays open.
 
-Messages you might see: `name must be 1-16 characters`, `unknown character`, `room not found`, `name already taken`, `game already started`, `room is full`, `room closed`, `only the host can start`, `need at least 2 players`, `not accepting guesses right now`, `already guessed this round`, `pick 1 to N sounds`, `not a choice: X`.
+Messages you might see: `name must be 1-16 characters`, `unknown character`, `unknown game mode`, `game mode is not available yet`, `solo play is not available for this game mode`, `room not found`, `name already taken`, `game already started`, `room is full`, `room closed`, `only the host can start`, `need at least 2 players`, `not accepting guesses right now`, `already guessed this round`, `pick 1 to N sounds`, `not a choice: X`.
 
 ## Scoring
 

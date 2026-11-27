@@ -12,12 +12,9 @@ import (
 )
 
 const (
-	minPlayers  = 2
-	maxPlayers  = 8
-	totalRounds = 10
-	numChoices  = 8
-	roundTime   = 20 * time.Second
-	revealTime  = 5 * time.Second
+	numChoices = 8
+	roundTime  = 20 * time.Second
+	revealTime = 5 * time.Second
 
 	pointsCorrect = 100
 	maxSpeedBonus = 50 // per correct pick, shrinks linearly to 0 as the timer runs out
@@ -47,6 +44,7 @@ type Room struct {
 	code    string
 	sounds  []Sound
 	audio   *AudioStore
+	mode    gameModeSpec
 	solo    bool
 	onEmpty func()
 	events  chan func()
@@ -66,10 +64,16 @@ type Room struct {
 }
 
 func newRoom(code string, sounds []Sound, audio *AudioStore, solo bool, onEmpty func()) *Room {
+	mode, _ := findGameMode(defaultGameModeID)
+	return newRoomWithMode(code, sounds, audio, solo, mode, onEmpty)
+}
+
+func newRoomWithMode(code string, sounds []Sound, audio *AudioStore, solo bool, mode gameModeSpec, onEmpty func()) *Room {
 	return &Room{
 		code:    code,
 		sounds:  sounds,
 		audio:   audio,
+		mode:    mode,
 		solo:    solo,
 		onEmpty: onEmpty,
 		events:  make(chan func()),
@@ -182,7 +186,7 @@ func (r *Room) addPlayer(p *Player) error {
 	if r.phase != phaseLobby {
 		return errors.New("game already started")
 	}
-	if len(r.members) >= maxPlayers {
+	if len(r.members) >= r.mode.MaxPlayers {
 		return errors.New("room is full")
 	}
 
@@ -235,8 +239,8 @@ func (r *Room) onStart(p *Player) {
 		p.deliver(errorMsg("only the host can start"))
 	case r.phase != phaseLobby:
 		p.deliver(errorMsg("game already running"))
-	case !r.solo && len(r.connected()) < minPlayers:
-		p.deliver(errorMsg(fmt.Sprintf("need at least %d players", minPlayers)))
+	case !r.solo && len(r.connected()) < r.mode.MinPlayers:
+		p.deliver(errorMsg(fmt.Sprintf("need at least %d players", r.mode.MinPlayers)))
 	default:
 		for _, m := range r.members {
 			m.score = 0
@@ -270,7 +274,7 @@ func (r *Room) startRound() {
 	r.current = roundStartOut{
 		Type:        "round_start",
 		Round:       r.round,
-		TotalRounds: totalRounds,
+		TotalRounds: r.mode.TotalRounds,
 		AudioURL:    "/audio/" + r.audioID,
 		Choices:     r.choices,
 		Count:       count,
@@ -328,7 +332,7 @@ func (r *Room) endRound() {
 	r.broadcast(roundEndOut{Type: "round_end", Answer: r.answer, Results: results})
 	r.broadcastState()
 
-	if r.round >= totalRounds {
+	if r.round >= r.mode.TotalRounds {
 		r.after(revealTime, r.endGame)
 	} else {
 		r.after(revealTime, r.startRound)
@@ -398,10 +402,13 @@ func (r *Room) broadcastState() {
 	r.broadcast(stateOut{
 		Type:        "room_state",
 		Code:        r.code,
+		Mode:        r.mode.ID,
+		MinPlayers:  r.mode.MinPlayers,
+		MaxPlayers:  r.mode.MaxPlayers,
 		Phase:       r.phase,
 		Host:        r.host,
 		Round:       r.round,
-		TotalRounds: totalRounds,
+		TotalRounds: r.mode.TotalRounds,
 		Players:     players,
 	})
 }

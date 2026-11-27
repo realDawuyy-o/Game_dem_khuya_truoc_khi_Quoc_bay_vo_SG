@@ -16,9 +16,12 @@ serves the UI, multiplayer API, and round audio on the same origin. It loads
 rates) from the repository's `sound_library` directory, converting them to the
 game's mono 22.05 kHz mix format when the server starts.
 
-Click “ARE YOU READY?” to open the lobby. Host a room, join with its four-letter
-code, or choose “SOLO TEST” to run the real server rounds alone. The solo room
-uses the same round timing, audio, answers, and scoring as multiplayer.
+Click “ARE YOU READY?” to open the lobby. Hosting opens the game-mode picker;
+Sound Mix is playable now, while future mode templates are marked “Coming
+soon.” Sound Mix rooms support up to 32 players. Join with a four-letter room
+code, or choose “SOLO TEST” and select Sound Mix to run the real server rounds
+alone. The solo room uses the same round timing, audio, answers, and scoring as
+multiplayer.
 
 The client uses `localhost:8080` automatically when served on localhost. To
 point a separately hosted frontend at the API, set the `game-backend` meta tag

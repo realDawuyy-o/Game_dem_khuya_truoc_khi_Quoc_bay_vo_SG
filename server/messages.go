@@ -5,6 +5,7 @@ type inMsg struct {
 	Type      string   `json:"type"`                // create, join, start, guess, rename
 	Name      string   `json:"name,omitempty"`      // create, join, rename
 	Character string   `json:"character,omitempty"` // create, join
+	Mode      string   `json:"mode,omitempty"`      // create
 	Room      string   `json:"room,omitempty"`      // join
 	Solo      bool     `json:"solo,omitempty"`      // create
 	Picks     []string `json:"picks,omitempty"`     // guess
@@ -30,6 +31,9 @@ type playerOut struct {
 type stateOut struct {
 	Type        string      `json:"type"` // room_state
 	Code        string      `json:"code"`
+	Mode        string      `json:"mode"`
+	MinPlayers  int         `json:"minPlayers"`
+	MaxPlayers  int         `json:"maxPlayers"`
 	Phase       string      `json:"phase"`
 	Host        string      `json:"host"`
 	Round       int         `json:"round"`

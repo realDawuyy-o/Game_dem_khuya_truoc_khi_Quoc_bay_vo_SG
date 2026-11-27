@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -85,7 +86,39 @@ func TestRoomStateIncludesPlayerCharacter(t *testing.T) {
 
 	message := <-player.send
 	state, ok := message.(stateOut)
-	if !ok || len(state.Players) != 1 || state.Players[0].Character != "kiwi" {
+	if !ok || len(state.Players) != 1 || state.Players[0].Character != "kiwi" ||
+		state.Mode != defaultGameModeID || state.MaxPlayers != 32 {
 		t.Fatalf("room state = %#v, want player character kiwi", message)
+	}
+}
+
+func TestRoomSupportsModePlayerCapacity(t *testing.T) {
+	room := newRoom("TEST", []Sound{{Name: "cat", Samples: []int16{1, 2, 3}}}, newAudioStore(), false, func() {})
+	go room.run()
+	t.Cleanup(func() {
+		room.do(func() { room.close() })
+		select {
+		case <-room.done:
+		case <-time.After(time.Second):
+			t.Error("room did not close during cleanup")
+		}
+	})
+
+	players := make([]*Player, 0, 32)
+	for index := range 32 {
+		player := newPlayer(fmt.Sprintf("Player%02d", index), nil)
+		if err := room.join(player); err != nil {
+			t.Fatalf("join player %d: %v", index+1, err)
+		}
+		players = append(players, player)
+		for _, joined := range players {
+			for len(joined.send) > 0 {
+				<-joined.send
+			}
+		}
+	}
+
+	if err := room.join(newPlayer("Player33", nil)); err == nil || err.Error() != "room is full" {
+		t.Fatalf("join 33rd player error = %v, want room is full", err)
 	}
 }

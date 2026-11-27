@@ -51,7 +51,23 @@ func (h *Hub) serve(ctx context.Context, conn *websocket.Conn) {
 	var room *Room
 	switch msg.Type {
 	case "create":
-		room = h.create(msg.Solo)
+		modeID := msg.Mode
+		if modeID == "" {
+			modeID = defaultGameModeID
+		}
+		mode, ok := findGameMode(modeID)
+		switch {
+		case !ok:
+			wsjson.Write(ctx, conn, errorMsg("unknown game mode"))
+			return
+		case !mode.Available:
+			wsjson.Write(ctx, conn, errorMsg("game mode is not available yet"))
+			return
+		case msg.Solo && !mode.SoloAllowed:
+			wsjson.Write(ctx, conn, errorMsg("solo play is not available for this game mode"))
+			return
+		}
+		room = h.create(msg.Solo, mode)
 	case "join":
 		room = h.find(strings.ToUpper(strings.TrimSpace(msg.Room)))
 		if room == nil {
@@ -85,12 +101,12 @@ func isValidCharacter(character string) bool {
 	}
 }
 
-func (h *Hub) create(solo bool) *Room {
+func (h *Hub) create(solo bool, mode gameModeSpec) *Room {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	code := h.newCode()
-	room := newRoom(code, h.sounds, h.audio, solo, func() { h.remove(code) })
+	room := newRoomWithMode(code, h.sounds, h.audio, solo, mode, func() { h.remove(code) })
 	h.rooms[code] = room
 	go room.run()
 	return room

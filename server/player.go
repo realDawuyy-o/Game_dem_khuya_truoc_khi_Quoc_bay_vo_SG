@@ -23,7 +23,7 @@ type Player struct {
 }
 
 func newPlayer(name string, conn *websocket.Conn) *Player {
-	return &Player{name: name, conn: conn, send: make(chan any, 16)}
+	return &Player{name: name, conn: conn, send: make(chan any, 64)}
 }
 
 // deliver never blocks, so one laggy player can't stall the whole room.

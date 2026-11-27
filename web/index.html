@@ -193,7 +193,39 @@
           <input id="join-room-code" type="text" maxlength="4" pattern="[A-HJ-NP-Z]{4}" placeholder="Room code" required autocomplete="off" />
           <button class="game-button dialog-join-button" type="submit">Join the jam <span aria-hidden="true">↗</span></button>
         </form>
+        <section class="mode-picker" id="mode-picker" aria-labelledby="mode-picker-title" hidden>
+          <h3 id="mode-picker-title">Choose a game mode</h3>
+          <p>Every mode is designed for rooms of up to 32 players.</p>
+          <div class="mode-options">
+            <button class="mode-option" type="button" data-game-mode="sound_mix">
+              <span class="mode-option-heading">
+                <strong>Sound Mix</strong>
+                <span class="mode-badge">PLAY NOW</span>
+              </span>
+              <span>Listen closely and pick out the sounds in each mix.</span>
+              <span class="mode-details">2–32 players · 10 rounds</span>
+            </button>
+            <button class="mode-option" type="button" disabled>
+              <span class="mode-option-heading">
+                <strong>Beat Builder</strong>
+                <span class="mode-badge">COMING SOON</span>
+              </span>
+              <span>A shared multiplayer rhythm-game template.</span>
+              <span class="mode-details">2–32 players · 10 rounds</span>
+            </button>
+            <button class="mode-option" type="button" disabled>
+              <span class="mode-option-heading">
+                <strong>Animal Groove</strong>
+                <span class="mode-badge">COMING SOON</span>
+              </span>
+              <span>A shared multiplayer music-party template.</span>
+              <span class="mode-details">2–32 players · 10 rounds</span>
+            </button>
+          </div>
+          <button class="game-button mode-cancel" id="mode-cancel" type="button">Back</button>
+        </section>
         <p class="room-code" id="room-code" hidden></p>
+        <p class="room-mode" id="room-mode" hidden></p>
         <section class="room-members" id="room-members" aria-labelledby="room-members-title" hidden>
           <h3 id="room-members-title">ROOM MEMBERS <span id="member-count"></span></h3>
           <ul id="member-list"></ul>
