@@ -24,6 +24,9 @@ const gameStatus = document.querySelector("#game-status");
 const roundHeading = document.querySelector("#round-heading");
 const roundTimer = document.querySelector("#round-timer");
 const roundAudio = document.querySelector("#round-audio");
+const soundPlayButton = document.querySelector("#sound-play");
+const soundProgressFill = document.querySelector("#sound-progress-fill");
+const soundTime = document.querySelector("#sound-time");
 const guessForm = document.querySelector("#guess-form");
 const soundChoices = document.querySelector("#sound-choices");
 const choicesPrompt = document.querySelector("#choices-prompt");
@@ -617,11 +620,44 @@ function renderRoundStart(round) {
   roundAudio.play().catch((error) => {
     if (error.name !== "NotAllowedError") {
       console.error("Unable to play the round audio.", error);
-      gameStatus.textContent = "Audio could not be played. Use the audio controls to try again.";
+      gameStatus.textContent = "Audio could not be played. Press play to try again.";
     }
   });
   showRoundCountdown(round.endsAt);
 }
+
+function formatTime(seconds) {
+  const whole = Math.floor(seconds || 0);
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+}
+
+function updateSoundPlayer() {
+  const duration = Number.isFinite(roundAudio.duration) ? roundAudio.duration : 0;
+  const progress = duration ? roundAudio.currentTime / duration : 0;
+  soundProgressFill.style.width = `${progress * 100}%`;
+  soundTime.textContent = `${formatTime(roundAudio.currentTime)} / ${formatTime(duration)}`;
+
+  const state = roundAudio.ended ? "ended" : roundAudio.paused ? "paused" : "playing";
+  soundPlayButton.dataset.state = state;
+  soundPlayButton.setAttribute(
+    "aria-label",
+    { ended: "Replay sound", paused: "Play sound", playing: "Pause sound" }[state],
+  );
+}
+
+["play", "pause", "ended", "timeupdate", "durationchange", "emptied"].forEach((type) => {
+  roundAudio.addEventListener(type, updateSoundPlayer);
+});
+
+soundPlayButton.addEventListener("click", () => {
+  if (!roundAudio.paused) {
+    roundAudio.pause();
+    return;
+  }
+  roundAudio.play().catch((error) => {
+    console.error("Unable to play the round audio.", error);
+  });
+});
 
 function soundLabel(name) {
   return name.replaceAll("_", " ");

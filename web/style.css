@@ -1102,9 +1102,80 @@ summary:focus-visible {
   font-size: 10px;
 }
 
-#round-audio {
-  width: 100%;
-  min-height: 36px;
+.sound-player {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px 8px 8px;
+  border: 2px solid var(--olive);
+  border-radius: 999px;
+  background: var(--paper-lighter);
+}
+
+.sound-play {
+  display: grid;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--paper-lighter);
+  background: var(--forest);
+  cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.sound-play:hover {
+  background: var(--deep-teal);
+}
+
+.sound-play:active {
+  transform: scale(0.94);
+}
+
+.sound-play:focus-visible {
+  outline: 3px solid var(--sky);
+  outline-offset: 2px;
+}
+
+.sound-play svg {
+  display: none;
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.sound-play[data-state="paused"] .icon-play,
+.sound-play[data-state="playing"] .icon-pause,
+.sound-play[data-state="ended"] .icon-replay {
+  display: block;
+}
+
+.sound-progress {
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(107, 142, 78, 0.22);
+}
+
+.sound-progress span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--forest);
+  transition: width 250ms linear;
+}
+
+.sound-time {
+  flex: 0 0 auto;
+  color: var(--night-green);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 #guess-form {

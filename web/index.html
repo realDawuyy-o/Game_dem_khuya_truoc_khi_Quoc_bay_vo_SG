@@ -251,7 +251,16 @@
             <p id="round-timer"></p>
           </div>
           <p id="game-status" role="status" aria-live="polite"></p>
-          <audio id="round-audio" controls preload="auto"></audio>
+          <div class="sound-player">
+            <button class="sound-play" id="sound-play" type="button" data-state="paused" aria-label="Play sound">
+              <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+              <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zm6 0h4v14h-4z" /></svg>
+              <svg class="icon-replay" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z" /></svg>
+            </button>
+            <div class="sound-progress" aria-hidden="true"><span id="sound-progress-fill"></span></div>
+            <span class="sound-time" id="sound-time">0:00 / 0:00</span>
+          </div>
+          <audio id="round-audio" preload="auto"></audio>
           <form id="guess-form">
             <fieldset id="sound-choices">
               <legend id="choices-prompt">Choose the sounds you hear</legend>
