@@ -1124,19 +1124,62 @@ summary:focus-visible {
 }
 
 #sound-choices label {
+  position: relative;
   display: flex;
   min-width: 0;
+  min-height: 44px;
   align-items: center;
-  gap: 7px;
-  padding: 7px;
-  border: 1px solid var(--olive);
+  justify-content: center;
+  padding: 8px 12px;
+  border: 2px solid var(--olive);
+  border-radius: 999px;
+  color: var(--night-green);
   background: var(--paper-lighter);
-  font-size: 11px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
   overflow-wrap: anywhere;
+  cursor: pointer;
+  user-select: none;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
 #sound-choices input {
-  accent-color: var(--forest);
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#sound-choices label:hover:not(:has(input:disabled)) {
+  border-color: var(--forest);
+  background: rgba(127, 168, 63, 0.16);
+}
+
+#sound-choices label:active:not(:has(input:disabled)) {
+  transform: scale(0.97);
+}
+
+#sound-choices label:has(input:checked) {
+  border-color: var(--forest);
+  color: var(--paper-lighter);
+  background: var(--forest);
+}
+
+#sound-choices label:has(input:checked):hover {
+  background: var(--forest);
+}
+
+#sound-choices label:has(input:focus-visible) {
+  outline: 3px solid var(--sky);
+  outline-offset: 2px;
+}
+
+#sound-choices label:has(input:disabled) {
+  cursor: default;
+}
+
+#sound-choices label:has(input:disabled:not(:checked)) {
+  opacity: 0.45;
 }
 
 .round-results {
