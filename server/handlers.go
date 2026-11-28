@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"net/http"
+	"time"
 
 	"github.com/coder/websocket"
 )
@@ -34,7 +36,9 @@ func handleAudio(audio *AudioStore) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "audio/wav")
 		w.Header().Set("Cache-Control", "no-store")
-		w.Write(wav)
+		// ServeContent sends Content-Length and supports Range requests, so
+		// browsers know the clip's duration up front and can seek/replay.
+		http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(wav))
 	}
 }
 
