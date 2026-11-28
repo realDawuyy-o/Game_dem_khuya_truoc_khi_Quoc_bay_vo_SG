@@ -258,7 +258,13 @@
             </fieldset>
             <button class="game-button" id="submit-guess" type="submit">Lock in answer</button>
           </form>
-          <ol class="round-results" id="round-results" hidden></ol>
+          <section class="round-results" id="round-results" aria-label="Round results" hidden>
+            <div class="round-answer">
+              <p class="round-answer-label">The answer</p>
+              <div class="sound-chips" id="answer-chips"></div>
+            </div>
+            <ul class="round-scores" id="round-scores"></ul>
+          </section>
           <ol class="game-leaderboard" id="game-leaderboard" hidden></ol>
           <button class="game-button leave-game-button" id="leave-game" type="button">Leave game</button>
         </section>

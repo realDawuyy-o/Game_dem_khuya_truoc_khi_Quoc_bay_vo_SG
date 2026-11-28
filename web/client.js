@@ -29,6 +29,8 @@ const soundChoices = document.querySelector("#sound-choices");
 const choicesPrompt = document.querySelector("#choices-prompt");
 const submitGuessButton = document.querySelector("#submit-guess");
 const roundResults = document.querySelector("#round-results");
+const answerChips = document.querySelector("#answer-chips");
+const roundScores = document.querySelector("#round-scores");
 const gameLeaderboard = document.querySelector("#game-leaderboard");
 const gameScreen = document.querySelector("#game-screen");
 const gamePlayerList = document.querySelector("#game-player-list");
@@ -625,24 +627,46 @@ function soundLabel(name) {
   return name.replaceAll("_", " ");
 }
 
+function soundChip(name, state) {
+  const chip = document.createElement("span");
+  chip.className = `sound-chip ${state}`;
+  chip.textContent = soundLabel(name);
+  return chip;
+}
+
 function renderRoundEnd(round) {
   stopRoundTimer();
   roundTimer.textContent = "";
   guessForm.hidden = true;
   roundResults.hidden = false;
-  const answerItem = document.createElement("li");
-  answerItem.textContent = `Answer: ${round.answer.map(soundLabel).join(", ")}`;
-  roundResults.replaceChildren(answerItem);
+  answerChips.replaceChildren(...round.answer.map((name) => soundChip(name, "is-answer")));
+  roundScores.replaceChildren();
   round.results.forEach((result) => {
     const item = document.createElement("li");
     const identity = document.createElement("span");
     identity.className = "score-identity";
-    identity.append(createAvatar(result.character));
-    const summary = document.createElement("span");
-    summary.textContent = `${result.name}: ${result.picks ? result.picks.map(soundLabel).join(", ") : "No answer"} (+${result.points})`;
-    identity.append(summary);
-    item.append(identity);
-    roundResults.append(item);
+    const name = document.createElement("span");
+    name.textContent = result.name;
+    identity.append(createAvatar(result.character), name);
+
+    const picks = document.createElement("div");
+    picks.className = "sound-chips";
+    if (result.picks?.length) {
+      result.picks.forEach((pick) => {
+        picks.append(soundChip(pick, round.answer.includes(pick) ? "is-correct" : "is-wrong"));
+      });
+    } else {
+      const none = document.createElement("span");
+      none.className = "no-answer";
+      none.textContent = "No answer";
+      picks.append(none);
+    }
+
+    const points = document.createElement("span");
+    points.className = "round-points";
+    points.textContent = `+${result.points}`;
+    item.append(identity, picks, points);
+    roundScores.append(item);
   });
   gameStatus.textContent = "Round complete. Next round starts shortly.";
 }

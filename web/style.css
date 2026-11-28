@@ -1139,7 +1139,93 @@ summary:focus-visible {
   accent-color: var(--forest);
 }
 
-.round-results,
+.round-results {
+  display: grid;
+  gap: 12px;
+}
+
+.round-answer {
+  padding: 12px;
+  border: 2px solid var(--forest);
+  background: rgba(127, 168, 63, 0.14);
+  text-align: center;
+}
+
+.round-answer-label {
+  margin: 0 0 8px;
+  color: var(--forest);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sound-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.round-answer .sound-chips {
+  justify-content: center;
+}
+
+.sound-chip {
+  padding: 3px 9px;
+  border: 1px solid var(--olive);
+  border-radius: 999px;
+  background: var(--paper-lighter);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sound-chip.is-answer {
+  border-color: var(--forest);
+  color: var(--paper-lighter);
+  background: var(--forest);
+  font-size: 14px;
+}
+
+.sound-chip.is-correct {
+  border-color: var(--forest);
+  color: var(--forest);
+}
+
+.sound-chip.is-wrong {
+  border-color: rgba(163, 59, 44, 0.5);
+  color: #a33b2c;
+  text-decoration: line-through;
+}
+
+.round-scores {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.round-scores li {
+  display: grid;
+  grid-template-columns: minmax(0, auto) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid rgba(107, 142, 78, 0.35);
+  background: var(--paper-lighter);
+}
+
+.no-answer {
+  color: var(--olive);
+  font-style: italic;
+}
+
+.round-points {
+  color: var(--deep-teal);
+  font-weight: 800;
+}
+
 .game-leaderboard {
   margin: 0;
   padding-left: 22px;
@@ -1147,7 +1233,6 @@ summary:focus-visible {
   font-size: 12px;
 }
 
-.round-results li,
 .game-leaderboard li {
   display: flex;
   align-items: center;
