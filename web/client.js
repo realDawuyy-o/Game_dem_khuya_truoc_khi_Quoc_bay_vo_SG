@@ -603,7 +603,7 @@ function renderRoundStart(round) {
       }
     });
     const text = document.createElement("span");
-    text.textContent = choice.replaceAll("_", " ");
+    text.textContent = soundLabel(choice);
     label.append(checkbox, text);
     soundChoices.append(label);
   });
@@ -621,13 +621,17 @@ function renderRoundStart(round) {
   showRoundCountdown(round.endsAt);
 }
 
+function soundLabel(name) {
+  return name.replaceAll("_", " ");
+}
+
 function renderRoundEnd(round) {
   stopRoundTimer();
   roundTimer.textContent = "";
   guessForm.hidden = true;
   roundResults.hidden = false;
   const answerItem = document.createElement("li");
-  answerItem.textContent = `Answer: ${round.answer.join(", ")}`;
+  answerItem.textContent = `Answer: ${round.answer.map(soundLabel).join(", ")}`;
   roundResults.replaceChildren(answerItem);
   round.results.forEach((result) => {
     const item = document.createElement("li");
@@ -635,7 +639,7 @@ function renderRoundEnd(round) {
     identity.className = "score-identity";
     identity.append(createAvatar(result.character));
     const summary = document.createElement("span");
-    summary.textContent = `${result.name}: ${result.picks ? result.picks.join(", ") : "No answer"} (+${result.points})`;
+    summary.textContent = `${result.name}: ${result.picks ? result.picks.map(soundLabel).join(", ") : "No answer"} (+${result.points})`;
     identity.append(summary);
     item.append(identity);
     roundResults.append(item);
