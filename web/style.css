@@ -1076,6 +1076,11 @@ summary:focus-visible {
   font-size: 12px;
 }
 
+#submit-guess {
+  font-size: 14px;
+  font-weight: 800;
+}
+
 .game-play-heading {
   display: flex;
   align-items: center;
